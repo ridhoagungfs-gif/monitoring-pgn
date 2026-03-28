@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard PGN - Official Messaging</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+    :root { --pgn-blue: #003D82; --pgn-sky: #0077C8; --pgn-success: #10B981; --pgn-danger: #EF4444; --pgn-bg: #F0F4F8; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--pgn-bg); color: #1E293B; }
+    .header { background: linear-gradient(135deg, var(--pgn-blue), var(--pgn-sky)); padding: 20px 30px; color: white; border-bottom: 4px solid #F4A500; }
+    .main { padding: 25px; max-width: 1600px; margin: 0 auto; }
+    .card { background: white; border-radius: 16px; padding: 20px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); height: 100%; }
+    .stat-val { font-family: 'JetBrains Mono', monospace; font-size: 36px; font-weight: 800; line-height: 1; }
+    .stat-val-sm { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 800; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: #F8FAFC; padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; color: #64748B; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #E2E8F0; }
+    tbody td { padding: 12px; border-bottom: 1px solid #F1F5F9; font-size: 13px; }
+    tr.row-high { background-color: #FFF1F2; }
+    tr.row-med { background-color: #FFFBEB; }
+    tr.row-low { background-color: #F8FAFC; }
+    .badge { padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 10px; text-transform: uppercase; }
+    .btn-wa { background: #25D366; color: white; padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; text-decoration: none; }
+    .btn-wa:hover { background: #128C7E; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3); }
+    .btn-wa.clicked { background: #CBD5E1 !important; color: #64748B !important; box-shadow: none !important; }
+    .chart-container { position: relative; height: 280px; width: 100%; }
+    .no-col { width: 50px; text-align: center; font-weight: 800; color: #94A3B8; }
+    .filter-btn { padding: 8px 16px; border-radius: 10px; font-size: 11px; font-weight: 800; transition: 0.2s; border: 2px solid transparent; }
+    .filter-btn.active { border-color: var(--pgn-blue); background: var(--pgn-blue); color: white; }
+    .filter-btn:not(.active) { background: white; color: #64748B; border-color: #E2E8F0; }
+</style>
+</head>
+<body>
+
+<div class="header flex items-center justify-between">
+    <div class="flex items-center gap-4">
+        <div class="bg-white text-blue-900 w-10 h-10 rounded-lg flex items-center justify-center font-black shadow-md">PGN</div>
+        <div>
+            <h1 class="text-lg font-extrabold tracking-tight uppercase">Monitoring Pendaftaran Gas</h1>
+            <p class="text-[10px] opacity-80 font-medium tracking-wide">Sync: NIK | Nama | Alamat (Verified)</p>
+        </div>
+    </div>
+    <div id="lastSync" class="text-[10px] bg-blue-900/40 px-4 py-2 rounded-xl border border-white/20 hidden font-bold"></div>
+</div>
+
+<div class="main">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="card border-2 border-dashed hover:border-blue-400 cursor-pointer transition flex items-center gap-4" onclick="document.getElementById('fileAll').click()">
+            <div class="text-3xl">📋</div>
+            <div class="flex-1">
+                <h3 class="font-bold text-blue-800 text-sm">Data Master Penghuni</h3>
+                <input type="file" id="fileAll" class="hidden" accept=".xlsx, .xls, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" onchange="handleFile(this, 'all')">
+                <div id="infoAll" class="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tighter">Belum ada file</div>
+            </div>
+        </div>
+        <div class="card border-2 border-dashed hover:border-green-400 cursor-pointer transition flex items-center gap-4" onclick="document.getElementById('fileReg').click()">
+            <div class="text-3xl">✅</div>
+            <div class="flex-1">
+                <h3 class="font-bold text-green-700 text-sm">Data Sudah Mendaftar</h3>
+                <input type="file" id="fileReg" class="hidden" accept=".xlsx, .xls, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" onchange="handleFile(this, 'reg')">
+                <div id="infoReg" class="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tighter">Belum ada file</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex gap-4 mb-6">
+        <button id="btnProcess" onclick="processData()" class="bg-blue-600 hover:bg-blue-800 text-white px-10 py-4 rounded-2xl font-black shadow-xl disabled:opacity-30 transition transform active:scale-95" disabled>🚀 ANALISIS & UPDATE PESAN WA</button>
+        <button onclick="location.reload()" class="px-4 py-3 text-xs font-bold text-slate-400 hover:text-slate-600 transition underline">RESET</button>
+    </div>
+
+    <div id="dashboardSection" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="card bg-slate-800 text-white border-none shadow-lg">
+                <div class="text-[10px] uppercase font-bold opacity-60 tracking-widest mb-1">Total Master Unit</div>
+                <div id="valTotal" class="stat-val">0</div>
+            </div>
+            <div class="card bg-emerald-600 text-white border-none shadow-lg">
+                <div class="text-[10px] uppercase font-bold opacity-60 tracking-widest mb-1">Terdaftar</div>
+                <div id="valReg" class="stat-val">0</div>
+            </div>
+            <div class="card bg-rose-600 text-white border-none shadow-lg">
+                <div class="text-[10px] uppercase font-bold opacity-60 tracking-widest mb-1">Belum Terdaftar</div>
+                <div id="valUnreg" class="stat-val">0</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+            <div class="card lg:col-span-3 flex flex-col items-center">
+                <h3 class="font-black text-slate-700 text-xs mb-4 uppercase self-start italic">Status Global (%)</h3>
+                <div class="chart-container"><canvas id="donutChart"></canvas></div>
+            </div>
+            <div class="card lg:col-span-4">
+                <h3 class="font-black text-slate-700 text-xs mb-4 uppercase italic">Distribusi Belum Daftar</h3>
+                <div class="chart-container"><canvas id="barChart"></canvas></div>
+            </div>
+            <div class="card lg:col-span-5 overflow-hidden">
+                <h3 class="font-black text-slate-700 text-xs mb-4 uppercase italic">Ringkasan Data Analisis</h3>
+                <div class="grid grid-cols-2 gap-4 h-[280px]">
+                    <div class="overflow-y-auto border-r pr-2">
+                        <p class="text-[9px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Global Priority %</p>
+                        <table class="text-[11px]">
+                            <thead class="bg-slate-50">
+                                <tr><th class="py-2 px-1">Tipe</th><th class="py-2 px-1 text-right">Unit</th><th class="py-2 px-1 text-right">%</th></tr>
+                            </thead>
+                            <tbody id="prioritySummaryBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="overflow-y-auto pl-2">
+                        <p class="text-[9px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Unregistered %</p>
+                        <table class="text-[11px]">
+                            <thead class="bg-slate-50">
+                                <tr><th class="py-2 px-1">Tower</th><th class="py-2 px-1 text-right text-red-600">Unit</th><th class="py-2 px-1 text-right">%</th></tr>
+                            </thead>
+                            <tbody id="summaryBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-0 overflow-hidden shadow-2xl border-2 border-slate-200">
+            <div class="p-5 border-b bg-slate-50 flex flex-col gap-4">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div class="flex items-center gap-4">
+                        <h3 class="font-black text-slate-800 uppercase text-sm">List Detail Follow Up</h3>
+                        <div id="progressBox" class="bg-white px-4 py-2 rounded-xl border border-slate-200 flex items-center gap-3 shadow-sm">
+                           <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Progress Chat:</span>
+                            <div class="text-sm font-black text-blue-700"><span id="clickedCount">0</span> / <span id="totalUnregCount">0</span></div>
+                       </div>
+                    </div>
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <input type="text" id="searchTable" placeholder="Cari No/Unit/Nama/Prioritas..." onkeyup="filterTable()" class="border-2 border-slate-100 rounded-xl px-4 py-2 text-sm focus:border-blue-500 outline-none w-full md:w-64">
+                        <button id="btnExport" onclick="exportExcel()" class="bg-blue-900 text-white px-6 py-2 rounded-xl text-xs font-black shadow-lg">EXPORT</button>
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
+                    <button onclick="filterPriority('all')" id="btn-all" class="filter-btn active">SEMUA DATA</button>
+                    <button onclick="filterPriority('high')" id="btn-high" class="filter-btn">🔥 HIGH (0-3 BLN)</button>
+                    <button onclick="filterPriority('med')" id="btn-med" class="filter-btn">⚡ MEDIUM (4-5 BLN)</button>
+                    <button onclick="filterPriority('low')" id="btn-low" class="filter-btn">🧊 LOW (6+ BLN)</button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto max-h-[600px]">
+                <table id="mainTable">
+                    <thead>
+                        <tr>
+                            <th class="no-col">No.</th>
+                            <th>Nama</th>
+                            <th class="text-center">Tower</th>
+                            <th class="text-center">Unit</th>
+                            <th class="text-center">Lantai</th>
+                            <th class="text-center">Prioritas</th>
+                            <th>Aksi WhatsApp</th>
+                            <th>Lama Tinggal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let rawAll = [], rawReg = [], listBelumDaftar = [], donutChart, barChart, clickedCount = 0;
+Chart.register(ChartDataLabels);
+
+function handleFile(input, type) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+        const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+        if(type === 'all') { 
+            rawAll = data; 
+            document.getElementById('infoAll').innerText = "✅ " + data.length + " UNIT LOADED"; 
+        } else { 
+            rawReg = data; 
+            document.getElementById('infoReg').innerText = "✅ " + data.length + " REG LOADED"; 
+        }
+        document.getElementById('btnProcess').disabled = !(rawAll.length && rawReg.length);
+    };
+    reader.readAsBinaryString(file);
+}
+
+function clean(val) { return val ? String(val).toLowerCase().replace(/[^a-z0-9]/g, '').trim() : ''; }
+
+function calculateStay(dateVal) {
+    if (!dateVal) return 0;
+    let d = (dateVal instanceof Date) ? dateVal : new Date(dateVal);
+    if (isNaN(d.getTime())) return 0;
+    const now = new Date(2026, 2, 28); 
+    let months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+    return months < 0 ? 0 : months;
+}
+
+function markAsClicked(el) {
+   if(!el.classList.contains('clicked')) {
+        el.classList.add('clicked');
+        el.innerHTML = "<span>✅</span> Terkirim";
+        clickedCount++;
+        document.getElementById('clickedCount').innerText = clickedCount;
+    }
+}
+
+function getWALink(phone, message) {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const baseUrl = isMobile ? "whatsapp://send" : "https://web.whatsapp.com/send";
+    return `${baseUrl}?phone=${phone}&text=${encodeURIComponent(message)}`;
+}
+
+function processData() {
+    const regNIK = new Set(), regNames = new Set(), regAlamat = new Set();
+    rawReg.forEach(r => {
+        regNIK.add(clean(r.NIK || r.nik || r.KTP || r['No KTP']));
+        regNames.add(clean(r.Nama || r.nama || r['Nama Lengkap']));
+        regAlamat.add(clean(r.Tower) + clean(r.Unit) + clean(r.Lantai));
+    });
+
+    listBelumDaftar = rawAll.filter(m => {
+        const nMaster = clean(m.NIK || m.nik || m.KTP);
+        const nmMaster = clean(m.Nama || m.nama || m['Nama Lengkap']);
+        const uMaster = clean(m.Tower) + clean(m.Unit) + clean(m.Lantai);
+        return !( (nMaster && regNIK.has(nMaster)) || (nmMaster && regNames.has(nmMaster)) || (uMaster && regAlamat.has(uMaster)) );
+    }).map(row => {
+        const stay = calculateStay(row.Tgl_Mulai_Huni || row['Tgl Mulai Huni']);
+        let priority = 'low';
+        if(stay <= 3) priority = 'high';
+        else if(stay <= 5) priority = 'med';
+        return { ...row, stay, priority };
+    });
+
+    const totalUnreg = listBelumDaftar.length;
+    const countHigh = listBelumDaftar.filter(x => x.priority === 'high').length;
+    const countMed = listBelumDaftar.filter(x => x.priority === 'med').length;
+    const countLow = listBelumDaftar.filter(x => x.priority === 'low').length;
+
+    // Calc Percent Priority
+    const pHI = totalUnreg > 0 ? ((countHigh/totalUnreg)*100).toFixed(1) : 0;
+    const pME = totalUnreg > 0 ? ((countMed/totalUnreg)*100).toFixed(1) : 0;
+    const pLO = totalUnreg > 0 ? ((countLow/totalUnreg)*100).toFixed(1) : 0;
+
+    document.getElementById('valTotal').innerText = rawAll.length.toLocaleString('id-ID');
+    document.getElementById('valReg').innerText = (rawAll.length - totalUnreg).toLocaleString('id-ID');
+    document.getElementById('valUnreg').innerText = totalUnreg.toLocaleString('id-ID');
+    
+    // Fill Priority Table
+    document.getElementById('prioritySummaryBody').innerHTML = `
+        <tr class="border-b">
+            <td class="py-2 text-rose-600 font-bold">HIGH</td>
+            <td class="py-2 text-right font-mono font-bold">${countHigh}</td>
+            <td class="py-2 text-right font-bold text-rose-600">${pHI}%</td>
+        </tr>
+        <tr class="border-b">
+            <td class="py-2 text-orange-500 font-bold">MED</td>
+            <td class="py-2 text-right font-mono font-bold">${countMed}</td>
+            <td class="py-2 text-right font-bold text-orange-500">${pME}%</td>
+        </tr>
+        <tr class="border-b">
+            <td class="py-2 text-slate-500 font-bold">LOW</td>
+            <td class="py-2 text-right font-mono font-bold">${countLow}</td>
+            <td class="py-2 text-right font-bold text-slate-500">${pLO}%</td>
+        </tr>
+    `;
+
+    document.getElementById('totalUnregCount').innerText = totalUnreg;
+    document.getElementById('clickedCount').innerText = "0";
+    clickedCount = 0;
+
+    renderTable(listBelumDaftar);
+
+    const tMaster = {}, tUnreg = {};
+    rawAll.forEach(m => { const t = (m.Tower || 'UNK').toString().toUpperCase(); tMaster[t] = (tMaster[t] || 0) + 1; });
+    listBelumDaftar.forEach(m => { const t = (m.Tower || 'UNK').toString().toUpperCase(); tUnreg[t] = (tUnreg[t] || 0) + 1; });
+
+    const sBody = document.getElementById('summaryBody');
+    sBody.innerHTML = '';
+    Object.keys(tMaster).sort().forEach(t => {
+        const unr = tUnreg[t] || 0;
+        const pTwr = totalUnreg > 0 ? ((unr/totalUnreg)*100).toFixed(1) : 0; // % dari total yang belum daftar
+        sBody.innerHTML += `<tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="py-2 px-1 font-bold text-slate-600">${t}</td>
+            <td class="text-right text-red-500 font-bold font-mono">${unr}</td>
+            <td class="text-right font-black text-blue-900">${pTwr}%</td>
+        </tr>`;
+    });
+
+    updateCharts(rawAll.length - totalUnreg, totalUnreg, tUnreg);
+    document.getElementById('dashboardSection').classList.remove('hidden');
+    document.getElementById('lastSync').innerText = "SYNC: " + new Date().toLocaleTimeString();
+    document.getElementById('lastSync').classList.remove('hidden');
+    window.finalData = listBelumDaftar;
+}
+
+function renderTable(data) {
+    const msgTemplate = `Halo Bapak/Ibu, salam kenal kami dari tim Pertamina Gas Negara🙏
+Kami ingin menawarkan penggunaan gas bumi PGN,
+ 
+Praktis: Mengalir 24 Jam tanpa takut kehabisan gas
+Ekonomis: Hanya Rp6.000/m³.
+Instalasi: Sudah ada, tinggal gas in saja.
+ 
+Bagi Bapak/Ibu yang ingin menggunakan fasilitas gas bumi di unitnya, saat ini pendaftaran sedang dibuka. Bapak/Ibu tinggal melakukan registrasi saja dan akan kami bantu prosesnya agar gasnya bisa segera dialirkan. Kalau Bapak/Ibu berminat atau mau tanya-tanya dulu soal syarat pendaftarannya, boleh balas pesan ini ya 😊`;
+
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+
+    data.forEach((row, idx) => {
+        const waNum = (row.No_WA || row['No WA'] || '').toString().replace(/[^0-9]/g, '');
+        let formattedWA = waNum.startsWith('0') ? '62' + waNum.slice(1) : waNum;
+        const waLink = getWALink(formattedWA, msgTemplate);
+
+        const tr = document.createElement('tr');
+        tr.className = 'row-' + row.priority;
+        tr.setAttribute('data-priority', row.priority);
+        tr.innerHTML = `
+            <td class="no-col font-mono text-[11px]">${idx + 1}</td>
+            <td class="font-bold text-slate-700">${row.Nama || '-'}</td>
+            <td class="text-center font-bold text-blue-600">${row.Tower || '-'}</td>
+            <td class="text-center font-mono">${row.Unit || '-'}</td>
+            <td class="text-center text-slate-400">${row.Lantai || '-'}</td>
+            <td class="text-center">
+                <span class="badge ${row.priority === 'high' ? 'bg-rose-500 text-white' : row.priority === 'med' ? 'bg-orange-400 text-white' : 'bg-slate-400 text-white'}">${row.priority.toUpperCase()}</span>
+            </td>
+            <td>
+                ${formattedWA ? `<a href="${waLink}" target="_blank" class="btn-wa" onclick="markAsClicked(this)"><span>📱</span> Kirim</a>` : '<span class="text-slate-300 italic text-[11px]">No WA-</span>'}
+            </td>
+            <td><span class="font-bold ${row.priority === 'high' ? 'text-rose-600' : 'text-slate-600'}">${row.stay} Bulan</span></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function filterPriority(p) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + p).classList.add('active');
+    const rows = document.getElementById("tableBody").getElementsByTagName("tr");
+    for (let r of rows) {
+        if(p === 'all') r.style.display = "";
+        else r.style.display = r.getAttribute('data-priority') === p ? "" : "none";
+    }
+}
+
+function updateCharts(reg, unreg, tData) {
+    if(donutChart) donutChart.destroy(); if(barChart) barChart.destroy();
+    const tot = reg + unreg;
+    donutChart = new Chart(document.getElementById('donutChart'), {
+        type: 'doughnut',
+        data: { labels: ['Sudah', 'Belum'], datasets: [{ data: [reg, unreg], backgroundColor: ['#059669', '#E11D48'], borderWidth: 0 }] },
+        options: { maintainAspectRatio: false, plugins: { datalabels: { color: '#fff', font: { weight: 'bold' }, formatter: (v) => ((v/tot)*100).toFixed(0)+'%' }, legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } } }
+    });
+    barChart = new Chart(document.getElementById('barChart'), {
+        type: 'bar',
+        data: { labels: Object.keys(tData), datasets: [{ label: 'Unit', data: Object.values(tData), backgroundColor: '#003D82', borderRadius: 6 }] },
+        options: { maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'top', font: { size: 9, weight: 'bold' } } }, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } }
+    });
+}
+
+function filterTable() {
+    const q = document.getElementById("searchTable").value.toLowerCase();
+    const rows = document.getElementById("tableBody").getElementsByTagName("tr");
+    for (let r of rows) r.style.display = r.textContent.toLowerCase().includes(q) ? "" : "none";
+}
+
+function exportExcel() {
+    const ws = XLSX.utils.json_to_sheet(window.finalData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Belum_Daftar");
+    XLSX.writeFile(wb, `PGN_Report_${new Date().getTime()}.xlsx`);
+}
+</script>
+</body>
+</html>
