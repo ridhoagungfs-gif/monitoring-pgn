@@ -68,7 +68,7 @@
     </div>
 
     <div class="flex gap-4 mb-6">
-        <button id="btnProcess" onclick="processData()" class="bg-blue-600 hover:bg-blue-800 text-white px-10 py-4 rounded-2xl font-black shadow-xl disabled:opacity-30 transition transform active:scale-95" disabled>🚀 ANALISIS & UPDATE PESAN WA</button>
+        <button id="btnProcess" onclick="processData()" class="bg-blue-600 hover:bg-blue-800 text-white px-10 py-4 rounded-2xl font-black shadow-xl disabled:opacity-30 transition transform active:scale-95" disabled>🚀 ANALISIS DATA</button>
         <button onclick="location.reload()" class="px-4 py-3 text-xs font-bold text-slate-400 hover:text-slate-600 transition underline">RESET</button>
     </div>
 
@@ -79,29 +79,29 @@
                 <div id="valTotal" class="stat-val">0</div>
             </div>
             <div class="card bg-emerald-600 text-white border-none shadow-lg">
-                <div class="text-[10px] uppercase font-bold opacity-60 tracking-widest mb-1">Terdaftar</div>
+                <div class="text-[10px] uppercase font-bold opacity-60 tracking-widest mb-1">Terdaftar Gas PGN</div>
                 <div id="valReg" class="stat-val">0</div>
             </div>
             <div class="card bg-rose-600 text-white border-none shadow-lg">
-                <div class="text-[10px] uppercase font-bold opacity-60 tracking-widest mb-1">Belum Terdaftar</div>
+                <div class="text-[10px] uppercase font-bold opacity-60 tracking-widest mb-1">Belum Terdaftar Gas PGN</div>
                 <div id="valUnreg" class="stat-val">0</div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
             <div class="card lg:col-span-3 flex flex-col items-center">
-                <h3 class="font-black text-slate-700 text-xs mb-4 uppercase self-start italic">Status Global (%)</h3>
+                <h3 class="font-black text-slate-700 text-xs mb-4 uppercase self-start italic">Realisasi Pendaftaran (%)</h3>
                 <div class="chart-container"><canvas id="donutChart"></canvas></div>
             </div>
             <div class="card lg:col-span-4">
-                <h3 class="font-black text-slate-700 text-xs mb-4 uppercase italic">Distribusi Belum Daftar</h3>
+                <h3 class="font-black text-slate-700 text-xs mb-4 uppercase italic">Distribusi Belum Daftar Per Tower</h3>
                 <div class="chart-container"><canvas id="barChart"></canvas></div>
             </div>
             <div class="card lg:col-span-5 overflow-hidden">
                 <h3 class="font-black text-slate-700 text-xs mb-4 uppercase italic">Ringkasan Data Analisis</h3>
                 <div class="grid grid-cols-2 gap-4 h-[280px]">
                     <div class="overflow-y-auto border-r pr-2">
-                        <p class="text-[9px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Global Priority %</p>
+                        <p class="text-[9px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Priority Segment %</p>
                         <table class="text-[11px]">
                             <thead class="bg-slate-50">
                                 <tr><th class="py-2 px-1">Tipe</th><th class="py-2 px-1 text-right">Unit</th><th class="py-2 px-1 text-right">%</th></tr>
@@ -140,9 +140,9 @@
                 
                 <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
                     <button onclick="filterPriority('all')" id="btn-all" class="filter-btn active">SEMUA DATA</button>
-                    <button onclick="filterPriority('high')" id="btn-high" class="filter-btn">🔥 HIGH (0-3 BLN)</button>
-                    <button onclick="filterPriority('med')" id="btn-med" class="filter-btn">⚡ MEDIUM (4-5 BLN)</button>
-                    <button onclick="filterPriority('low')" id="btn-low" class="filter-btn">🧊 LOW (6+ BLN)</button>
+                    <button onclick="filterPriority('high')" id="btn-high" class="filter-btn">🔥 Prioritas Utama (0-3 BLN)</button>
+                    <button onclick="filterPriority('med')" id="btn-med" class="filter-btn">⚡ Prioritas Sedang (4-5 BLN)</button>
+                    <button onclick="filterPriority('low')" id="btn-low" class="filter-btn">🧊 Prioritas Rendah (6+ BLN)</button>
                 </div>
             </div>
             
